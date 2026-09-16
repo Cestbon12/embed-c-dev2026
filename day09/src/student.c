@@ -36,6 +36,58 @@ while(current!=NULL){
 printf("%-10d %-15s %-10.2f\n",current->id,current->name,current->score);
 current=current->next;
 }}
+
+struct Student *deleteStudent(struct Student *head,int id){
+if(head==NULL){
+printf("kong");
+return NULL;
+}
+if(head->id==id){
+struct Student*temp=head;
+head=head->next;
+free(temp);
+printf("delete %d\n",id);
+return head;
+}
+struct Student*prev=head;
+struct Student*current=head->next;
+while(current!=NULL){
+if(current->id==id){
+prev->next=current->next;
+free(current);
+printf("delete %d\n",id);
+return head;
+}
+prev=current;
+current=current->next;
+}
+printf("not find %d\n",id);
+return head;
+}
+struct Student* findStudent(struct Student *head, int id) {
+    struct Student *current = head;
+    while (current != NULL) {
+        if (current->id == id) {
+            printf("找到学生：学号=%d 姓名=%s 成绩=%.2f\n",
+                   current->id, current->name, current->score);
+            return current;
+        }
+        current = current->next;
+    }
+    printf("未找到学号 %d\n", id);
+    return NULL;
+}
+void modifyStudent(struct Student *head, int id) {
+    struct Student *target = findStudent(head, id);
+    if (target == NULL) {
+        return;
+    }
+    printf("请输入新姓名：");
+    scanf("%s", target->name);
+    printf("请输入新成绩：");
+    scanf("%f", &target->score);
+    printf("修改成功\n");
+}
 void freeAll(struct Student *head){
 struct Student *current =head;
 while(current!=NULL){
