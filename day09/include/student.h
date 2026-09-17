@@ -12,5 +12,8 @@ void freeAll(struct Student *head);
 struct Student * deleteStudent(struct Student *head,int id);
 struct Student*findStudent(struct Student*head,int id);
 void modifyStudent(struct Student *head,int id);
+struct Student* sortByScore(struct Student *head);
+void saveToFile(struct Student *head, const char *filename);
+struct Student* loadFromFile(const char *filename);
 
 #endif
