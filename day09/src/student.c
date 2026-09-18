@@ -96,80 +96,74 @@ free(current);
 current=temp;
 }}
 
-struct Student*sortByScore(struct Student *head){
+struct Student *sortByScore(struct Student*head){
 if(head==NULL){
 return NULL;}
-for(struct Student *p=head;p!=NULL;p=p->next){
-	for(struct Student *q=p->next;q!=NULL;q=q->next){
-		if(p->score<q->score){
-			int tmpId= p->id;
-			p->id=q->id;
-			q->id=tmpId;
-			
-			char tmpName[30];
-			strcpy(tmpName,p->name);
-			strcpy(p->name,q->name);
-			strcpy(q->name,tmpName);
+for(struct Student*p=head;p!=NULL;p=p->next){
+	for(struct Student*q=p->next;q!=NULL;q=q->next){
+		if(q->score<p->score){
+			int tmpint= q->id;
+			 q->id= p->id;
+			 p->id= tmpint;
 
-			float tmpScore=p->score;
-			p->score=q->score;
-			q->score=tmpScore;
-}
-}
-}
+			char tmpname[30];
+			strcpy(tmpname,p->name);
+			strcpy(p->name,q->name);
+			strcpy(q->name,tmpname);
+	
+			float tmpscore= q->score;
+			 q->score= p->score;
+			 p->score= tmpscore;
+			}
+	}}
 return head;
 }
-void saveToFile(struct Student *head, const char *filename) {
-    FILE *fp = fopen(filename, "w");
-    if (fp == NULL) {
-        printf("无法打开文件 %s\n", filename);
-        return;
-    }
-struct Student *current = head;
-    while (current != NULL) {
-        fprintf(fp, "%d %s %.2f\n", current->id, current->name, current->score);
-        current = current->next;
-    }
 
-    fclose(fp);
-    printf("已保存到 %s\n", filename);
+void saveToFile(struct Student*head,const char *filename){
+FILE *fp =fopen(filename,"w");
+if(fp==NULL){
+printf("not find %s\n",filename);
 }
-struct Student* loadFromFile(const char *filename) {
-    FILE *fp = fopen(filename, "r");
-    if (fp == NULL) {
-        printf("无法打开文件 %s\n", filename);
-        return NULL;
-    }
+struct Student*current=head;
+while(current!=NULL){
+fprintf(fp,"id is %d,name is %s,score is %f\n",current->id,current->name,current->score);
+current=current->next;
+}
+fclose(fp);
+printf("successful");
+}
 
-    struct Student *head = NULL;
-    struct Student *tail = NULL;
-
-    int id;
-    char name[30];
-    float score;
-
-    while (fscanf(fp, "%d %s %f", &id, name, &score) == 3) {
-        struct Student *newnode = malloc(sizeof(struct Student));
-        if (newnode == NULL) {
-            printf("内存分配失败\n");
-            fclose(fp);
-            return head;
-        }
-        newnode->id = id;
-        strcpy(newnode->name, name);
-        newnode->score = score;
-        newnode->next = NULL;
-
-        if (head == NULL) {
-            head = newnode;
-            tail = newnode;
-        } else {
-            tail->next = newnode;
-            tail = newnode;
-        }
-    }
-
-    fclose(fp);
-    printf("已从 %s 加载数据\n", filename);
-    return head;
+struct Student*loadFromFile(const char *filename){
+FILE *fp=fopen(filename,"r");
+if(fp==NULL){
+printf("not find %s\n:",filename);
+return NULL;
+}
+struct Student *head=NULL;
+struct Student *tail=NULL;
+int id;
+char name[30];
+float score;
+while(fscanf(fp,"%d %s %f",&id,name,&score)==3)
+{
+struct Student *newnode=malloc(sizeof(struct Student));
+if(newnode==NULL){
+printf("fail");
+exit(1);
+}
+newnode->id=id;
+strcpy(newnode->name,name);
+newnode->score=score;
+newnode->next=NULL;
+if(head==NULL){
+head=newnode;
+tail=newnode;
+}
+else{
+tail->next=newnode;
+tail=newnode;
+}
+}
+fclose(fp);
+return head;
 }

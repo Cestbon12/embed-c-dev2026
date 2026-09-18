@@ -1,0 +1,4 @@
+id is 0,name is a2,score is 0.000000
+id is 0,name is dadawd,score is 123.000000
+id is 2,name is ewqe,score is 3232.000000
+id is 0,name is ewfewf,score is 23213.000000
