@@ -43,6 +43,26 @@ int main(void) {
         if (strcmp(args[0], "exit") == 0) {
             break;
         }
+	// 内建命令：cd
+	if(strcmp(args[0],"cd")==0){
+		if(args[1]==NULL){
+			chdir(getenv("HOME"));// 不带参数，回家目录
+		}else{
+			if(chdir(args[1])!=0){
+				perror("cd");// 失败提示
+			}
+		}
+	continue; // 跳过 fork+exec，直接下一轮
+}
+// 内建命令：pwd
+if(strcmp(args[0],"pwd")==0){
+	char cwd[1024];
+	if(getcwd(cwd,sizeof(cwd))!=NULL){
+		printf("%s\n",cwd);
+	}
+	continue;
+}
+
 
         // 5. fork + exec + wait
         pid_t pid = fork();
