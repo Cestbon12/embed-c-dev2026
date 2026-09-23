@@ -36,8 +36,7 @@ int main(void) {
         // 检测重定向和管道
         char *infile = NULL;
         char *outfile = NULL;
-        int pipe_pos[MAX_ARGS];
-        int pipe_count = 0;
+        int pipe_index = -1;
 
         for (int i = 0; args[i] != NULL; i++) {
             if (strcmp(args[i], ">") == 0) {
@@ -49,8 +48,9 @@ int main(void) {
                 args[i] = NULL;
                 break;
             } else if (strcmp(args[i], "|") == 0) {
-                pipe_pos[pipe_count++] = i;
+                pipe_index = i + 1;
                 args[i] = NULL;
+                break;
             }
         }
 
@@ -75,51 +75,40 @@ int main(void) {
         }
 
         // 管道处理
-        if (pipe_count > 0) {
-            int num_cmds = pipe_count + 1;
-            int pipes[MAX_ARGS][2];
-
-            // 1. 创建所有管道
-            for (int i = 0; i < pipe_count; i++) {
-                if (pipe(pipes[i]) < 0) {
-                    perror("pipe");
-                }
+        if (pipe_index != -1) {
+            int pipefd[2];
+            if (pipe(pipefd) < 0) {
+                perror("pipe");
+                continue;
             }
 
-            // 2. 逐个 fork 子进程
-            int start = 0;
-            for (int i = 0; i < num_cmds; i++) {
-                pid_t pid = fork();
-                if (pid == 0) {
-                    if (i > 0) {
-                        dup2(pipes[i - 1][0], 0);
-                    }
-                    if (i < pipe_count) {
-                        dup2(pipes[i][1], 1);
-                    }
-                    for (int j = 0; j < pipe_count; j++) {
-                        close(pipes[j][0]);
-                        close(pipes[j][1]);
-                    }
-                    execvp(args[start], &args[start]);
-                    perror("execvp");
-                    exit(1);
-                }
-                if (i < pipe_count) {
-                    start = pipe_pos[i] + 1;
-                }
+            // 左命令
+            pid_t pid1 = fork();
+            if (pid1 == 0) {
+                dup2(pipefd[1], 1);   // stdout → 管道写端
+                close(pipefd[0]);
+                close(pipefd[1]);
+                execvp(args[0], args);
+                perror("execvp");
+                exit(1);
             }
 
-            // 3. 父进程关闭所有管道
-            for (int i = 0; i < pipe_count; i++) {
-                close(pipes[i][0]);
-                close(pipes[i][1]);
+            // 右命令
+            pid_t pid2 = fork();
+            if (pid2 == 0) {
+                dup2(pipefd[0], 0);   // stdin → 管道读端
+                close(pipefd[0]);
+                close(pipefd[1]);
+                execvp(args[pipe_index], &args[pipe_index]);
+                perror("execvp");
+                exit(1);
             }
 
-            // 4. 等所有子进程
-            for (int i = 0; i < num_cmds; i++) {
-                wait(NULL);
-            }
+            // 父进程
+            close(pipefd[0]);
+            close(pipefd[1]);
+            wait(NULL);
+            wait(NULL);
             continue;
         }
 
