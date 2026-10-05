@@ -25,7 +25,7 @@ int main(void) {
         if (strlen(line) == 0) continue;
 
         // 解析命令
-        int argc = 0;
+         int argc = 0;
         char *token = strtok(line, " ");
         while (token != NULL && argc < MAX_ARGS - 1) {
             args[argc++] = token;

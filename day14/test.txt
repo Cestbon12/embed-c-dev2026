@@ -1,0 +1,15 @@
+block
+block1
+block1.c
+block2
+block2.c
+block3
+block3.c
+block4
+block4.c
+block5
+block5.c
+block6
+block6.c
+out.txt
+test.txt
