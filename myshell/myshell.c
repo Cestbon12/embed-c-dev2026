@@ -38,7 +38,7 @@ int main(void) {
         char *outfile = NULL;
         int pipe_pos[MAX_ARGS];
         int pipe_count = 0;
-
+	int background=0;
         for (int i = 0; args[i] != NULL; i++) {
             if (strcmp(args[i], ">") == 0) {
                 outfile = args[i + 1];
@@ -52,7 +52,12 @@ int main(void) {
                 pipe_pos[pipe_count++] = i;
                 args[i] = NULL;
             }
+		else if (strcmp(args[i],"&")==0){
+		background=1;
+		args[i]=NULL;
+		break;
         }
+}
 
         // 内建命令
         if (strcmp(args[0], "exit") == 0) break;
@@ -141,14 +146,21 @@ int main(void) {
                 dup2(fd, 1);
                 close(fd);
             }
+	fprintf(stderr, "DEBUG: exec [%s] [%s]\n",
+        args[0],
+        args[1] ? args[1] : "NULL");
             execvp(args[0], args);
             perror("execvp");
             exit(1);
         } else {
-            wait(NULL);
-        }
+            if(background){
+		printf("[1]%d\n",pid);
+	}else{
+		wait(NULL);
+	     fflush(stdout); 
+  }
     }
-
+}
     printf("bye\n");
     return 0;
 }

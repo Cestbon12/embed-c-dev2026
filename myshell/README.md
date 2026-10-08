@@ -5,10 +5,12 @@
 ## 功能
 
 - 执行外部命令（ls、cat、grep 等）
-- 内建命令：cd、pwd、exit
+- 内建命令：cd、pwd、exit、export
 - 输入重定向 `<`
 - 输出重定向 `>`
 - 管道 `|`（支持多个）
+- 后台运行 `&`
+- 信号处理：Ctrl+C 只中断当前命令，不退出 Shell
 
 ## 编译运行
 
@@ -19,9 +21,4 @@ make
 
 make clean
 
-## 技术点
-
-- 进程管理：fork、execvp、wait
-- 文件描述符：open、dup2、close
-- 管道：pipe
-- 内建命令：chdir、getcwd、getenv
+## 示例
