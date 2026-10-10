@@ -16,7 +16,7 @@ int main(void) {
         exit(1);
     }
 
-    // 2. 允许端口重用（避免 "Address already in use"）
+    // 2. 允许端口重用
     int opt = 1;
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
@@ -56,27 +56,53 @@ int main(void) {
 
         printf("\n=== 客户端已连接 ===\n");
 
-        // 7. 读 HTTP 请求
+        // 7. 读请求
         char buf[BUFSIZE];
         ssize_t n = read(client_fd, buf, BUFSIZE - 1);
-        if (n > 0) {
-            buf[n] = '\0';
-            printf("收到请求：\n%s\n", buf);
+        if (n <= 0) {
+            close(client_fd);
+            continue;
+        }
+        buf[n] = '\0';
+        printf("收到请求：\n%s\n", buf);
+
+        // 8. 解析请求行，提取路径
+        char method[16];
+        char path[256];
+        char version[16];
+
+        sscanf(buf, "%s %s %s", method, path, version);
+        printf("方法: %s, 路径: %s, 版本: %s\n", method, path, version);
+
+        // 9. 根据路径决定响应
+        const char *body;
+        const char *status;
+
+        if (strcmp(path, "/") == 0) {
+            status = "200 OK";
+            body = "这是主页\n";
+        } else if (strcmp(path, "/about") == 0) {
+            status = "200 OK";
+            body = "这是关于页\n";
+        } else if (strcmp(path, "/hello") == 0) {
+            status = "200 OK";
+            body = "Hello!\n";
+        } else {
+            status = "404 Not Found";
+            body = "404 Not Found\n";
         }
 
-        // 8. 返回固定的 HTTP 响应
-        const char *body = "Hello, World!\n";
-        char response[512];
+        // 10. 构造响应
+        char response[1024];
         int len = snprintf(response, sizeof(response),
-            "HTTP/1.1 200 OK\r\n"
+            "HTTP/1.1 %s\r\n"
             "Content-Type: text/plain\r\n"
             "Content-Length: %zu\r\n"
             "\r\n"
             "%s",
-            strlen(body), body);
+            status, strlen(body), body);
 
         write(client_fd, response, len);
-
         close(client_fd);
         printf("=== 连接关闭 ===\n");
     }
