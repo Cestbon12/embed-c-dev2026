@@ -2,11 +2,92 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
 #define PORT 8080
 #define BUFSIZE 4096
+#define WWW_ROOT "./www"
+
+// 根据文件后缀返回 Content-Type
+const char *get_content_type(const char *path) {
+    char *ext = strrchr(path, '.');
+    if (ext == NULL) return "application/octet-stream";
+
+    if (strcmp(ext, ".html") == 0) return "text/html; charset=utf-8";
+    if (strcmp(ext, ".css") == 0)  return "text/css; charset=utf-8";
+    if (strcmp(ext, ".js") == 0)   return "application/javascript; charset=utf-8";
+    if (strcmp(ext, ".png") == 0)  return "image/png";
+    if (strcmp(ext, ".jpg") == 0)  return "image/jpeg";
+    if (strcmp(ext, ".jpeg") == 0) return "image/jpeg";
+    if (strcmp(ext, ".gif") == 0)  return "image/gif";
+    if (strcmp(ext, ".txt") == 0)  return "text/plain; charset=utf-8";
+
+    return "application/octet-stream";
+}
+
+// 发送错误响应（404 等）
+void send_error(int client_fd, const char *status, const char *body) {
+    char response[512];
+    int len = snprintf(response, sizeof(response),
+        "HTTP/1.1 %s\r\n"
+        "Content-Type: text/plain; charset=utf-8\r\n"
+        "Content-Length: %zu\r\n"
+        "\r\n"
+        "%s",
+        status, strlen(body), body);
+    write(client_fd, response, len);
+}
+
+// 发送文件内容
+void send_file(int client_fd, const char *filepath) {
+    int fd = open(filepath, O_RDONLY);
+    if (fd < 0) {
+        send_error(client_fd, "404 Not Found", "404 Not Found\n");
+        return;
+    }
+
+    // 获取文件大小
+    struct stat st;
+    if (stat(filepath, &st) < 0) {
+        close(fd);
+        send_error(client_fd, "404 Not Found", "404 Not Found\n");
+        return;
+    }
+
+    // 分配缓冲区读文件
+    char *filebuf = malloc(st.st_size);
+    if (filebuf == NULL) {
+        close(fd);
+        send_error(client_fd, "500 Internal Server Error", "500\n");
+        return;
+    }
+
+    ssize_t n = read(fd, filebuf, st.st_size);
+    close(fd);
+    if (n < 0) {
+        free(filebuf);
+        send_error(client_fd, "500 Internal Server Error", "500\n");
+        return;
+    }
+
+    // 构造响应头
+    char header[1024];
+    int header_len = snprintf(header, sizeof(header),
+        "HTTP/1.1 200 OK\r\n"
+        "Content-Type: %s\r\n"
+        "Content-Length: %ld\r\n"
+        "\r\n",
+        get_content_type(filepath), (long)st.st_size);
+
+    // 先发头，再发文件内容
+    write(client_fd, header, header_len);
+    write(client_fd, filebuf, n);
+
+    free(filebuf);
+}
 
 int main(void) {
     // 1. 创建 socket
@@ -54,8 +135,6 @@ int main(void) {
             continue;
         }
 
-        printf("\n=== 客户端已连接 ===\n");
-
         // 7. 读请求
         char buf[BUFSIZE];
         ssize_t n = read(client_fd, buf, BUFSIZE - 1);
@@ -64,47 +143,31 @@ int main(void) {
             continue;
         }
         buf[n] = '\0';
-        printf("收到请求：\n%s\n", buf);
 
-        // 8. 解析请求行，提取路径
+        // 8. 解析请求行
         char method[16];
         char path[256];
         char version[16];
-
         sscanf(buf, "%s %s %s", method, path, version);
-        printf("方法: %s, 路径: %s, 版本: %s\n", method, path, version);
 
-        // 9. 根据路径决定响应
-        const char *body;
-        const char *status;
+        printf("请求: %s %s\n", method, path);
 
+        // 9. 路径处理
+        // 访问 "/" 时默认返回 index.html
         if (strcmp(path, "/") == 0) {
-            status = "200 OK";
-            body = "这是主页\n";
-        } else if (strcmp(path, "/about") == 0) {
-            status = "200 OK";
-            body = "这是关于页\n";
-        } else if (strcmp(path, "/hello") == 0) {
-            status = "200 OK";
-            body = "Hello!\n";
-        } else {
-            status = "404 Not Found";
-            body = "404 Not Found\n";
+            strcpy(path, "/index.html");
         }
 
-        // 10. 构造响应
-        char response[1024];
-        int len = snprintf(response, sizeof(response),
-            "HTTP/1.1 %s\r\n"
-            "Content-Type: text/plain\r\n"
-            "Content-Length: %zu\r\n"
-            "\r\n"
-            "%s",
-            status, strlen(body), body);
+        // 拼成实际文件路径
+        char filepath[512];
+        snprintf(filepath, sizeof(filepath), "%s%s", WWW_ROOT, path);
 
-        write(client_fd, response, len);
+        printf("文件路径: %s\n", filepath);
+
+        // 10. 发送文件
+        send_file(client_fd, filepath);
+
         close(client_fd);
-        printf("=== 连接关闭 ===\n");
     }
 
     close(server_fd);
