@@ -1,16 +1,17 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -g
+CFLAGS = -Wall -Wextra -g -Iinclude
+SRCS = src/main.c src/handler.c src/file.c src/log.c
+OBJS = $(SRCS:.c=.o)
+TARGET = http_server
+LDFLAGS = -lpthread
 
-all: server client http_server
+all: $(TARGET)
 
-server: server.c
-	$(CC) $(CFLAGS) -o $@ $<
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
-client: client.c
-	$(CC) $(CFLAGS) -o $@ $<
-
-http_server: http_server.c
-	$(CC) $(CFLAGS) -o $@ $<-lpthread
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f server client http_server
+	rm -f $(OBJS) $(TARGET)
