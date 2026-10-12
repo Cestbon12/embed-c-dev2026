@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <pthread.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
@@ -28,7 +29,7 @@ const char *get_content_type(const char *path) {
     return "application/octet-stream";
 }
 
-// 发送错误响应（404 等）
+// 发送错误响应
 void send_error(int client_fd, const char *status, const char *body) {
     char response[512];
     int len = snprintf(response, sizeof(response),
@@ -49,7 +50,6 @@ void send_file(int client_fd, const char *filepath) {
         return;
     }
 
-    // 获取文件大小
     struct stat st;
     if (stat(filepath, &st) < 0) {
         close(fd);
@@ -57,7 +57,6 @@ void send_file(int client_fd, const char *filepath) {
         return;
     }
 
-    // 分配缓冲区读文件
     char *filebuf = malloc(st.st_size);
     if (filebuf == NULL) {
         close(fd);
@@ -73,7 +72,6 @@ void send_file(int client_fd, const char *filepath) {
         return;
     }
 
-    // 构造响应头
     char header[1024];
     int header_len = snprintf(header, sizeof(header),
         "HTTP/1.1 200 OK\r\n"
@@ -82,39 +80,63 @@ void send_file(int client_fd, const char *filepath) {
         "\r\n",
         get_content_type(filepath), (long)st.st_size);
 
-    // 先发头，再发文件内容
     write(client_fd, header, header_len);
     write(client_fd, filebuf, n);
 
     free(filebuf);
 }
 
+// 线程函数：处理一个客户端
+void *handle_client(void *arg) {
+    int client_fd = *(int *)arg;
+    free(arg);
+
+    char buf[BUFSIZE];
+    ssize_t n = read(client_fd, buf, BUFSIZE - 1);
+    if (n <= 0) {
+        close(client_fd);
+        return NULL;
+    }
+    buf[n] = '\0';
+
+    char method[16], path[256], version[16];
+    sscanf(buf, "%s %s %s", method, path, version);
+
+    printf("请求: %s %s\n", method, path);
+
+    if (strcmp(path, "/") == 0) {
+        strcpy(path, "/index.html");
+    }
+
+    char filepath[512];
+    snprintf(filepath, sizeof(filepath), "%s%s", WWW_ROOT, path);
+
+    send_file(client_fd, filepath);
+    close(client_fd);
+    return NULL;
+}
+
 int main(void) {
-    // 1. 创建 socket
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
         perror("socket");
         exit(1);
     }
 
-    // 2. 允许端口重用
     int opt = 1;
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-    // 3. 设置地址
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(PORT);
 
-    // 4. bind
     if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         perror("bind");
         exit(1);
     }
 
-    // 5. listen
     if (listen(server_fd, 5) < 0) {
         perror("listen");
         exit(1);
@@ -122,7 +144,6 @@ int main(void) {
 
     printf("HTTP 服务器启动，访问 http://localhost:%d\n", PORT);
 
-    // 6. 循环接受连接
     while (1) {
         struct sockaddr_in client_addr;
         socklen_t client_len = sizeof(client_addr);
@@ -135,39 +156,21 @@ int main(void) {
             continue;
         }
 
-        // 7. 读请求
-        char buf[BUFSIZE];
-        ssize_t n = read(client_fd, buf, BUFSIZE - 1);
-        if (n <= 0) {
+        // 把 client_fd 复制到堆上
+        int *pclient = malloc(sizeof(int));
+        *pclient = client_fd;
+
+        // 创建线程处理
+        pthread_t tid;
+        if (pthread_create(&tid, NULL, handle_client, pclient) != 0) {
+            perror("pthread_create");
+            free(pclient);
             close(client_fd);
             continue;
         }
-        buf[n] = '\0';
 
-        // 8. 解析请求行
-        char method[16];
-        char path[256];
-        char version[16];
-        sscanf(buf, "%s %s %s", method, path, version);
-
-        printf("请求: %s %s\n", method, path);
-
-        // 9. 路径处理
-        // 访问 "/" 时默认返回 index.html
-        if (strcmp(path, "/") == 0) {
-            strcpy(path, "/index.html");
-        }
-
-        // 拼成实际文件路径
-        char filepath[512];
-        snprintf(filepath, sizeof(filepath), "%s%s", WWW_ROOT, path);
-
-        printf("文件路径: %s\n", filepath);
-
-        // 10. 发送文件
-        send_file(client_fd, filepath);
-
-        close(client_fd);
+        // 线程自动回收
+        pthread_detach(tid);
     }
 
     close(server_fd);

@@ -10,7 +10,7 @@ client: client.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 http_server: http_server.c
-	$(CC) $(CFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) -o $@ $<-lpthread
 
 clean:
 	rm -f server client http_server
