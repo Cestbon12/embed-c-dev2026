@@ -1,0 +1,14 @@
+# 编译产物
+*.o
+app
+myshell
+http_server
+hash_table/app
+
+# vim 临时文件
+*.swp
+*~
+
+# 测试数据
+students.txt
+permission_test.txt
