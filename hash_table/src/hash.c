@@ -28,7 +28,36 @@ ht->table[i]=NULL;
 }
 return ht;
 }
+static void hash_resize(struct HashTable*ht,int new_size){
+	struct Entry **old_table=ht->table;
+	int old_size=ht->size;
+	struct Entry**new_table=malloc(sizeof(struct Entry*)*new_size);
+	if(new_table==NULL)
+{
+	return;
+}
+	for(int i=0;i<new_size;i++)
+{
+	new_table[i]=NULL;
+}
+for(int i=0;i<old_size;i++)
+{struct Entry*current=old_table[i];
+while(current!=NULL)
+{struct Entry*next=current->next;
+int new_idx=current->key%new_size;
+current->next=new_table[new_idx];
+new_table[new_idx]=current;
+current=next;
+}
+}
+free(old_table);
+ht->table=new_table;
+ht->size=new_size;
+}
 void hash_put(struct HashTable *ht, int key, const char *value) {
+ if (ht->count >= ht->size * 3 / 4) {
+        hash_resize(ht, ht->size * 2);
+    }
     int idx = hash_func(key, ht->size);
 
     // 先找 key 是否存在
