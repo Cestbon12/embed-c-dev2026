@@ -4,6 +4,8 @@ app
 myshell
 http_server
 hash_table/app
+hash_open/app
+binary_tree/app
 
 # vim 临时文件
 *.swp
@@ -12,3 +14,7 @@ hash_table/app
 # 测试数据
 students.txt
 permission_test.txt
+
+# 练习草稿
+practice.c
+handler_practice.c
